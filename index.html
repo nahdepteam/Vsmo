@@ -16,13 +16,13 @@
             theme: {
                 extend: {
                     colors: {
-                        base: '#0f172a',        // slate-900
-                        surface: '#1e293b',     // slate-800
-                        surfaceHover: '#334155',// slate-700
-                        borderMuted: '#334155', // slate-700
-                        textMain: '#f1f5f9',    // slate-100
-                        textMuted: '#94a3b8',   // slate-400
-                        accent: '#10b981',      // emerald-500
+                        base: '#0f172a',
+                        surface: '#1e293b',
+                        surfaceHover: '#334155',
+                        borderMuted: '#334155',
+                        textMain: '#f1f5f9',
+                        textMuted: '#94a3b8',
+                        accent: '#10b981',
                     },
                     fontFamily: {
                         sans: ['Inter', 'system-ui', 'sans-serif'],
@@ -136,13 +136,10 @@
             </div>
             
             <div class="flex items-center justify-between mb-6">
-                <h2 class="text-2xl font-light text-white flex items-center gap-3" id="category-title">
-                    <!-- Title inject -->
-                </h2>
+                <h2 class="text-2xl font-light text-white flex items-center gap-3" id="category-title"></h2>
             </div>
             
-            <div id="category-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-5">
-            </div>
+            <div id="category-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-5"></div>
 
             <div class="mt-10 flex justify-center">
                 <button id="btn-load-more" onclick="app.loadMoreCategory()" class="px-6 py-2.5 bg-surface border border-borderMuted text-textMain rounded-full hover:bg-surfaceHover hover:border-accent transition-all flex items-center gap-2 outline-none group shadow-sm">
@@ -178,7 +175,10 @@
                 <!-- Khu vực Video -->
                 <div class="w-full lg:w-3/4 flex flex-col gap-4">
                     <div class="w-full aspect-video bg-black rounded-xl border border-borderMuted overflow-hidden relative shadow-lg">
+                        
+                        <!-- CHỖ SỬA: ĐÃ BỔ SUNG THÊM IFRAME DỰ PHÒNG LỖI -->
                         <video id="player" class="w-full h-full object-contain" controls playsinline></video>
+                        <iframe id="iframe-player" class="w-full h-full hidden" frameborder="0" allowfullscreen></iframe>
                         
                         <div id="player-overlay" class="absolute inset-0 bg-base/90 flex flex-col items-center justify-center z-10 transition-opacity">
                             <div class="text-center px-4">
@@ -192,7 +192,7 @@
 
                     <div id="sync-notification" class="hidden flex items-center justify-between bg-surface border border-borderMuted text-textMuted px-4 py-2.5 rounded-lg text-sm transition-all duration-300">
                         <div class="flex items-center gap-3">
-                            <i class="ph ph-cloud-check text-accent text-lg"></i> 
+                            <i class="ph ph-cloud-check text-accent text-lg" id="sync-icon"></i> 
                             <span id="sync-message">Đã lưu tiến trình xem lên Cloud.</span>
                         </div>
                     </div>
@@ -258,9 +258,7 @@
 
     <!-- APP LOGIC -->
     <script>
-        // --- CẤU HÌNH API VSMOV ---
         const API_BASE = 'https://vsmov.com/api'; 
-        
         const API_CONFIG = {
             genres: `${API_BASE}/the-loai`,
             countries: `${API_BASE}/quoc-gia`,
@@ -306,7 +304,7 @@
                                 localStorage.setItem(this.storageKey, JSON.stringify(this.cloudDataCache));
                             }
                         }
-                    } catch (e) { console.error("Lỗi đồng bộ:", e); }
+                    } catch (e) {}
                 }
             },
             async getHistory() { return this.cloudDataCache || {}; },
@@ -343,7 +341,6 @@
             
             currentCategorySlug: '', currentCategoryName: '', currentCategoryType: 'danh-sach', currentCategoryPage: 1, isCategoryLoading: false,
 
-            // CHỈ GIỮ LẠI CÁC DANH MỤC (danh-sach) ĐƯỢC API HỖ TRỢ CHUẨN
             homeCategories: [
                 { slug: 'phim-le', name: 'Phim Lẻ', icon: 'ph-popcorn' },
                 { slug: 'phim-bo', name: 'Phim Bộ (Dài Tập)', icon: 'ph-film-strip' }
@@ -403,7 +400,6 @@
                         fetch(API_CONFIG.genres).then(r => r.json()),
                         fetch(API_CONFIG.countries).then(r => r.json())
                     ]);
-                    
                     const genres = resG?.data?.items || resG?.items || resG?.data || [];
                     const countries = resC?.data?.items || resC?.items || resC?.data || [];
 
@@ -411,32 +407,20 @@
                         document.getElementById('genre-dropdown-list').innerHTML = genres.map(g => `
                             <button onclick="app.navigate('category', {slug: '${g.slug}', name: '${g.name}', type: 'the-loai'}); app.closeDropdowns();" class="text-left px-3 py-2 text-sm text-textMuted hover:text-white hover:bg-surfaceHover rounded transition-colors truncate outline-none border border-transparent hover:border-borderMuted shadow-sm">
                                 ${g.name}
-                            </button>
-                        `).join('');
-                    } else {
-                        document.getElementById('genre-dropdown-list').innerHTML = `<div class="col-span-full text-center text-textMuted py-4">Không có dữ liệu</div>`;
-                    }
-                    
+                            </button>`).join('');
+                    } 
                     if (countries.length > 0) {
                         document.getElementById('country-dropdown-list').innerHTML = countries.map(c => `
                             <button onclick="app.navigate('category', {slug: '${c.slug}', name: '${c.name}', type: 'quoc-gia'}); app.closeDropdowns();" class="text-left px-3 py-2 text-sm text-textMuted hover:text-white hover:bg-surfaceHover rounded transition-colors truncate outline-none border border-transparent hover:border-borderMuted shadow-sm">
                                 ${c.name}
-                            </button>
-                        `).join('');
-                    } else {
-                        document.getElementById('country-dropdown-list').innerHTML = `<div class="col-span-full text-center text-textMuted py-4">Không có dữ liệu</div>`;
+                            </button>`).join('');
                     }
-                } catch (e) {
-                    console.error('Lỗi tải danh mục filter', e);
-                    document.getElementById('genre-dropdown-list').innerHTML = `<div class="col-span-full text-center text-red-400 py-4 text-xs">Lỗi kết nối API VSMov</div>`;
-                    document.getElementById('country-dropdown-list').innerHTML = `<div class="col-span-full text-center text-red-400 py-4 text-xs">Lỗi kết nối API VSMov</div>`;
-                }
+                } catch (e) {}
             },
 
             setupHomeLayout() {
                 const wrapper = document.getElementById('home-categories-wrapper');
                 wrapper.innerHTML = '';
-
                 this.homeCategories.forEach(cat => {
                     const section = document.createElement('section');
                     section.innerHTML = `
@@ -465,22 +449,15 @@
                         slider.classList.add('cursor-grabbing'); slider.classList.remove('cursor-grab');
                         startX = e.pageX - slider.offsetLeft; scrollLeft = slider.scrollLeft;
                     });
-                    slider.addEventListener('mouseleave', () => {
-                        isDown = false; slider.classList.remove('cursor-grabbing'); slider.classList.add('cursor-grab');
-                    });
-                    slider.addEventListener('mouseup', () => {
-                        isDown = false; slider.classList.remove('cursor-grabbing'); slider.classList.add('cursor-grab');
-                    });
+                    slider.addEventListener('mouseleave', () => { isDown = false; slider.classList.remove('cursor-grabbing'); slider.classList.add('cursor-grab'); });
+                    slider.addEventListener('mouseup', () => { isDown = false; slider.classList.remove('cursor-grabbing'); slider.classList.add('cursor-grab'); });
                     slider.addEventListener('mousemove', (e) => {
-                        if (!isDown) return;
-                        e.preventDefault();
+                        if (!isDown) return; e.preventDefault();
                         const walk = ((e.pageX - slider.offsetLeft) - startX) * 2;
                         if (Math.abs((e.pageX - slider.offsetLeft) - startX) > 5) dragged = true;
                         slider.scrollLeft = scrollLeft - walk;
                     });
-                    slider.addEventListener('click', (e) => {
-                        if (dragged) { e.preventDefault(); e.stopPropagation(); }
-                    }, true);
+                    slider.addEventListener('click', (e) => { if (dragged) { e.preventDefault(); e.stopPropagation(); } }, true);
                 });
             },
 
@@ -498,10 +475,7 @@
                     case 'detail': this.loadDetail(params.slug); break;
                     case 'history': this.renderHistoryView(); break;
                 }
-                
-                if (viewName !== 'category' || params.type !== undefined) {
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                }
+                if (viewName !== 'category' || params.type !== undefined) window.scrollTo({ top: 0, behavior: 'smooth' });
             },
 
             toggleLoading(show) {
@@ -518,12 +492,11 @@
                         const items = itemsData.map(i => ({
                             source: 'vsmov', name: i.name, origin_name: i.origin_name, slug: i.slug, 
                             thumb_url: getSafeImageUrl(domain, i.thumb_url),
-                            year: i.year || 'N/A',
-                            rating: (i.tmdb && i.tmdb.vote_average) ? Number(i.tmdb.vote_average).toFixed(1) : 'N/A'
+                            year: i.year || 'N/A', rating: (i.tmdb && i.tmdb.vote_average) ? Number(i.tmdb.vote_average).toFixed(1) : 'N/A'
                         }));
                         this.renderList(items, containerId, true, false); 
                     }
-                } catch (e) { console.error(`Lỗi tải ${slug}`, e); }
+                } catch (e) {}
             },
 
             async loadHomePage() {
@@ -566,9 +539,8 @@
                 const btnText = document.getElementById('load-more-text');
                 const btnIcon = document.getElementById('load-more-icon');
 
-                if (append) {
-                    btnText.textContent = 'Đang tải...'; btnIcon.className = 'ph ph-spinner animate-spin';
-                } else { this.toggleLoading(true); }
+                if (append) { btnText.textContent = 'Đang tải...'; btnIcon.className = 'ph ph-spinner animate-spin'; } 
+                else { this.toggleLoading(true); }
 
                 try {
                     const res = await fetch(API_CONFIG.category(type, slug, page)).then(r => r.json());
@@ -578,26 +550,19 @@
                         const items = itemsData.map(i => ({
                             source: 'vsmov', name: i.name, origin_name: i.origin_name, slug: i.slug, 
                             thumb_url: getSafeImageUrl(domain, i.thumb_url),
-                            year: i.year || 'N/A',
-                            rating: (i.tmdb && i.tmdb.vote_average) ? Number(i.tmdb.vote_average).toFixed(1) : 'N/A'
+                            year: i.year || 'N/A', rating: (i.tmdb && i.tmdb.vote_average) ? Number(i.tmdb.vote_average).toFixed(1) : 'N/A'
                         }));
                         
                         this.renderList(items, 'category-grid', false, append);
-
                         const pagination = res?.data?.params?.pagination || res?.page?.pagination || res?.pagination;
                         if (pagination && (pagination.currentPage >= pagination.totalPages || page >= pagination.totalPages)) {
                             btn.classList.add('hidden');
                         }
                     }
-                } catch (error) { 
-                    console.error("Lỗi tải trang danh mục:", error); 
-                } finally { 
-                    this.isCategoryLoading = false;
-                    this.toggleLoading(false);
-                    if (append) {
-                        btnText.textContent = 'Tải thêm phim';
-                        btnIcon.className = 'ph ph-caret-down group-hover:translate-y-0.5 transition-transform';
-                    }
+                } catch (error) {} 
+                finally { 
+                    this.isCategoryLoading = false; this.toggleLoading(false);
+                    if (append) { btnText.textContent = 'Tải thêm phim'; btnIcon.className = 'ph ph-caret-down group-hover:translate-y-0.5 transition-transform'; }
                 }
             },
 
@@ -613,12 +578,11 @@
                         results = itemsData.map(i => ({
                             source: 'vsmov', name: i.name, origin_name: i.origin_name, slug: i.slug, 
                             thumb_url: getSafeImageUrl(domain, i.thumb_url),
-                            year: i.year || 'N/A',
-                            rating: (i.tmdb && i.tmdb.vote_average) ? Number(i.tmdb.vote_average).toFixed(1) : 'N/A'
+                            year: i.year || 'N/A', rating: (i.tmdb && i.tmdb.vote_average) ? Number(i.tmdb.vote_average).toFixed(1) : 'N/A'
                         }));
                     }
                     this.renderSearch(results);
-                } catch (error) { console.error("Lỗi Search:", error); } 
+                } catch (error) {} 
                 finally { this.toggleLoading(false); }
             },
 
@@ -639,20 +603,27 @@
                             year: m.year || 'N/A', rating: m.tmdb?.vote_average ? `${m.tmdb.vote_average}/10` : 'N/A',
                             quality: m.quality || m.lang || 'FHD', 
                             genres: m.category ? m.category.map(c => ({name: c.name, slug: c.slug})) : [],
-                            episodes: eps.map(s => ({ server_name: s.server_name, items: s.server_data.map(ep => ({ name: ep.name, slug: ep.slug, link_m3u8: ep.link_m3u8 })) }))
+                            
+                            // CHỖ SỬA: LẤY THÊM LINK_EMBED ĐỂ DỰ PHÒNG
+                            episodes: eps.map(s => ({ 
+                                server_name: s.server_name, 
+                                items: s.server_data.map(ep => ({ 
+                                    name: ep.name, slug: ep.slug, 
+                                    link_m3u8: ep.link_m3u8 || '', 
+                                    link_embed: ep.link_embed || '' 
+                                })) 
+                            }))
                         };
                         this.currentMovie = movie;
                         this.renderDetail(movie);
                     } else { throw new Error("API trống"); }
-                } catch (error) {
-                    alert("Không tải được chi tiết phim này."); this.navigate('home');
-                } finally { this.toggleLoading(false); }
+                } catch (error) { alert("Không tải được chi tiết phim này."); this.navigate('home'); } 
+                finally { this.toggleLoading(false); }
             },
 
             renderList(items, containerId, isHorizontal, append = false) {
                 const container = document.getElementById(containerId);
                 if (!container) return;
-                
                 if (!append) container.innerHTML = '';
 
                 items.forEach(item => {
@@ -669,16 +640,10 @@
                             <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-base/40 transition-opacity">
                                 <i class="ph-fill ph-play-circle text-5xl text-white drop-shadow-xl"></i>
                             </div>
-                            <div class="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[9px] uppercase font-bold tracking-wider border backdrop-blur-sm shadow-sm bg-emerald-900/80 text-emerald-200 border-emerald-700/50">
-                                VSMOV
-                            </div>
+                            <div class="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[9px] uppercase font-bold tracking-wider border backdrop-blur-sm shadow-sm bg-emerald-900/80 text-emerald-200 border-emerald-700/50">VSMOV</div>
                             <div class="absolute bottom-2 left-2 flex gap-1 z-10">
-                                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wider border backdrop-blur-sm shadow-sm bg-base/80 text-white border-borderMuted">
-                                    ${item.year}
-                                </span>
-                                <span class="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wider border backdrop-blur-sm shadow-sm bg-yellow-900/80 text-yellow-500 border-yellow-700/50">
-                                    <i class="ph-fill ph-star"></i> ${item.rating}
-                                </span>
+                                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wider border backdrop-blur-sm shadow-sm bg-base/80 text-white border-borderMuted">${item.year}</span>
+                                <span class="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wider border backdrop-blur-sm shadow-sm bg-yellow-900/80 text-yellow-500 border-yellow-700/50"><i class="ph-fill ph-star"></i> ${item.rating}</span>
                             </div>
                         </div>
                         <div class="mt-3 px-1">
@@ -704,7 +669,6 @@
                 document.getElementById('detail-origin-name').textContent = movie.origin_name;
                 document.getElementById('detail-breadcrumb-name').textContent = movie.name;
                 document.getElementById('detail-content').innerHTML = movie.content;
-                
                 document.getElementById('detail-year').textContent = movie.year;
                 document.getElementById('detail-rating').textContent = movie.rating;
                 document.getElementById('detail-quality').textContent = movie.quality;
@@ -723,7 +687,6 @@
 
                 const epContainer = document.getElementById('episodes-container');
                 epContainer.innerHTML = '';
-                
                 const historyRecord = await HistoryManager.getMovieProgress(movie.slug);
                 let defaultEp = null; let resumeTime = 0;
 
@@ -777,29 +740,16 @@
                         <div class="w-20 aspect-[2/3] shrink-0 bg-base rounded-md overflow-hidden border border-borderMuted relative">
                             <img src="${item.thumb}" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity">
                             <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-90 group-hover:opacity-50 transition-opacity"></div>
-                            
-                            <button onclick="event.stopPropagation(); app.removeHistory('${item.id}')" class="absolute top-1 right-1 bg-black/70 text-textMuted rounded p-1 hover:text-red-400 backdrop-blur transition-colors z-10">
-                                <i class="ph ph-trash text-xs"></i>
-                            </button>
-                            
-                            ${item.year ? `<div class="absolute bottom-1 left-1 right-1 flex flex-col gap-0.5 z-10">
-                                <span class="flex items-center gap-0.5 px-1 py-0.5 rounded text-[8px] font-bold border backdrop-blur-sm bg-yellow-900/80 text-yellow-500 border-yellow-700/50 self-start">
-                                    <i class="ph-fill ph-star"></i> ${item.rating || 'N/A'}
-                                </span>
-                            </div>` : ''}
+                            <button onclick="event.stopPropagation(); app.removeHistory('${item.id}')" class="absolute top-1 right-1 bg-black/70 text-textMuted rounded p-1 hover:text-red-400 backdrop-blur transition-colors z-10"><i class="ph ph-trash text-xs"></i></button>
+                            ${item.year ? `<div class="absolute bottom-1 left-1 right-1 flex flex-col gap-0.5 z-10"><span class="flex items-center gap-0.5 px-1 py-0.5 rounded text-[8px] font-bold border backdrop-blur-sm bg-yellow-900/80 text-yellow-500 border-yellow-700/50 self-start"><i class="ph-fill ph-star"></i> ${item.rating || 'N/A'}</span></div>` : ''}
                         </div>
                         <div class="flex flex-col flex-1 py-1 overflow-hidden">
-                            <div class="flex items-center mb-1">
-                                <span class="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase border border-emerald-700/50 text-emerald-200 bg-emerald-900/50">VSMOV</span>
-                            </div>
+                            <div class="flex items-center mb-1"><span class="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase border border-emerald-700/50 text-emerald-200 bg-emerald-900/50">VSMOV</span></div>
                             <h3 class="text-sm font-medium text-white line-clamp-2 leading-tight">${item.name}</h3>
                             <p class="text-[11px] text-textMuted mt-1 bg-base/50 inline-block px-1.5 py-0.5 rounded self-start">Tập ${item.currentEpisode.name}</p>
-                            
                             <div class="mt-auto pt-3">
                                 <div class="w-full h-1 bg-base rounded-full overflow-hidden border border-borderMuted/50">
-                                    <div class="h-full bg-accent transition-all relative" style="width: ${progress}%">
-                                        <div class="absolute inset-0 bg-white/20"></div>
-                                    </div>
+                                    <div class="h-full bg-accent transition-all relative" style="width: ${progress}%"><div class="absolute inset-0 bg-white/20"></div></div>
                                 </div>
                             </div>
                         </div>
@@ -828,8 +778,26 @@
                 if (this.currentMovie?.resumeEp) { this.playEpisode(this.currentMovie.resumeEp, this.currentMovie.resumeTime); }
             },
             
+            // CHỖ SỬA: HÀM DỰ PHÒNG NẾU HLS LỖI CORS
+            useIframeFallback(embedUrl) {
+                if (this.hls) { this.hls.destroy(); this.hls = null; }
+                const video = document.getElementById('player');
+                const iframe = document.getElementById('iframe-player');
+                
+                video.pause();
+                video.classList.add('hidden');
+                iframe.classList.remove('hidden');
+                
+                // Fix lỗi Mixed Content (HTTP bị chặn trên trang HTTPS)
+                iframe.src = embedUrl ? embedUrl.replace(/^http:\/\//i, 'https://') : '';
+                
+                this.showSyncNotify("Đang dùng trình phát nhúng phụ (Bảo mật: Không thể lưu tiến trình)", true);
+            },
+
+            // CHỖ SỬA: LOGIC CỦA PLAYER ĐƯỢC LÀM MỚI
             playEpisode(episodeData, resumeTime = 0) {
                 this.currentEpisode = episodeData; this.lastSaveTime = resumeTime;
+                
                 document.querySelectorAll('.ep-btn').forEach(btn => {
                     btn.classList.remove('bg-accent', 'text-slate-900', 'border-transparent', 'shadow-md');
                     btn.classList.add('bg-base', 'text-textMuted', 'border-borderMuted');
@@ -840,17 +808,41 @@
                     activeBtn.classList.add('bg-accent', 'text-slate-900', 'border-transparent', 'shadow-md');
                 }
                 document.getElementById('player-overlay').classList.add('hidden');
+                
                 const video = document.getElementById('player');
-                const sourceUrl = episodeData.link_m3u8;
+                const iframe = document.getElementById('iframe-player');
+                
+                // Trả về UI của Video, giấu Iframe đi
+                iframe.classList.add('hidden'); iframe.src = '';
+                video.classList.remove('hidden');
 
                 if (this.hls) { this.hls.destroy(); this.hls = null; }
 
+                let sourceUrl = episodeData.link_m3u8;
+                if (sourceUrl) sourceUrl = sourceUrl.replace(/^http:\/\//i, 'https://');
+
+                // NẾU KHÔNG CÓ LINK M3U8, CHUYỂN DÙNG IFRAME NGAY
+                if (!sourceUrl) {
+                    this.useIframeFallback(episodeData.link_embed);
+                    return;
+                }
+
                 if (Hls.isSupported()) {
                     this.hls = new Hls({ maxBufferLength: 30 });
-                    this.hls.loadSource(sourceUrl); this.hls.attachMedia(video);
+                    this.hls.loadSource(sourceUrl); 
+                    this.hls.attachMedia(video);
+                    
                     this.hls.on(Hls.Events.MANIFEST_PARSED, () => {
                         if (resumeTime > 5) { video.currentTime = resumeTime; this.showSyncNotify(`Tiếp tục xem tập ${episodeData.name}`); }
                         video.play().catch(e => console.log("Autoplay blocked"));
+                    });
+
+                    // NẾU HLS.JS BÁO LỖI MẠNG HOẶC LỖI CORS, TỰ ĐỘNG LÙI VỀ IFRAME
+                    this.hls.on(Hls.Events.ERROR, (event, data) => {
+                        if (data.fatal) {
+                            console.warn("Lỗi HLS, chuyển sang Iframe", data);
+                            this.useIframeFallback(episodeData.link_embed);
+                        }
                     });
                 } 
                 else if (video.canPlayType('application/vnd.apple.mpegurl')) {
@@ -859,12 +851,15 @@
                         if (resumeTime > 5) { video.currentTime = resumeTime; app.showSyncNotify(`Tiếp tục xem tập ${episodeData.name}`); }
                         video.play(); video.removeEventListener('loadedmetadata', onLoaded);
                     });
+                    video.onerror = () => { this.useIframeFallback(episodeData.link_embed); };
                 }
             },
             
             stopPlayer() {
                 const video = document.getElementById('player');
+                const iframe = document.getElementById('iframe-player');
                 video.pause(); video.removeAttribute('src'); video.load();
+                iframe.src = '';
                 if (this.hls) { this.hls.destroy(); this.hls = null; }
                 this.currentEpisode = null;
             },
@@ -874,11 +869,19 @@
                 if (success && Math.random() < 0.1) { this.showSyncNotify("Đã lưu tiến trình ngầm"); }
             },
             
-            showSyncNotify(message) {
+            showSyncNotify(message, isWarning = false) {
                 const box = document.getElementById('sync-notification');
+                const icon = document.getElementById('sync-icon');
                 document.getElementById('sync-message').textContent = message;
+                
+                if (isWarning) {
+                    icon.className = 'ph ph-warning-circle text-yellow-500 text-lg';
+                } else {
+                    icon.className = 'ph ph-cloud-check text-accent text-lg';
+                }
+                
                 box.classList.remove('hidden');
-                setTimeout(() => box.classList.add('hidden'), 3000);
+                setTimeout(() => box.classList.add('hidden'), 4000);
             }
         };
 
