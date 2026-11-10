@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CineSync - VSMov API</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- HLS.js -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        base: '#0f172a',        // slate-900
+                        surface: '#1e293b',     // slate-800
+                        surfaceHover: '#334155',// slate-700
+                        borderMuted: '#334155', // slate-700
+                        textMain: '#f1f5f9',    // slate-100
+                        textMuted: '#94a3b8',   // slate-400
+                        accent: '#10b981',      // emerald-500
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: var(--color-base, #0f172a);
+            color: var(--color-textMain, #f1f5f9);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+        
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border: 2px solid #334155;
+            border-top-color: #10b981;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .no-select { user-select: none; -webkit-user-select: none; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans bg-base text-textMain selection:bg-surfaceHover selection:text-white">
+
+    <!-- Header navigation -->
+    <header class="sticky top-0 z-50 bg-base/90 backdrop-blur-md border-b border-borderMuted shadow-sm">
+        <div class="container mx-auto px-4 h-16 flex items-center justify-between gap-3 md:gap-8">
+            <button onclick="app.navigate('home')" class="flex items-center gap-2 text-xl font-medium text-white hover:text-textMuted transition-colors outline-none tracking-wide shrink-0">
+                <i class="ph ph-film-strip text-2xl text-accent"></i>
+                <span class="hidden sm:block">CINE<span class="font-light text-textMuted">SYNC</span></span>
+            </button>
+
+            <!-- Search Form -->
+            <form id="search-form" class="flex-1 max-w-xl relative">
+                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <i class="ph ph-magnifying-glass text-textMuted"></i>
+                </div>
+                <input type="text" id="search-input" 
+                       class="w-full bg-surface border border-borderMuted rounded-full py-2 pl-11 pr-4 text-sm text-textMain placeholder-textMuted focus:outline-none focus:border-textMuted focus:bg-surfaceHover transition-all shadow-inner" 
+                       placeholder="Tìm kiếm phim...">
+            </form>
+
+            <!-- Menus -->
+            <div class="flex items-center gap-1 sm:gap-2 shrink-0">
+                <div class="relative dropdown-container">
+                    <button type="button" onclick="app.toggleDropdown('genre-menu', event)" class="flex items-center gap-1.5 text-textMuted hover:text-white transition-colors outline-none p-2 rounded-full hover:bg-surface border border-transparent hover:border-borderMuted">
+                        <i class="ph ph-squares-four text-xl"></i>
+                        <span class="hidden lg:block text-sm font-medium">Thể loại</span>
+                    </button>
+                    <div id="genre-menu" class="dropdown-menu hidden absolute top-full right-0 lg:right-auto lg:left-0 mt-2 w-[300px] sm:w-[450px] bg-base border border-borderMuted rounded-xl shadow-2xl z-50">
+                        <div class="p-3 grid grid-cols-2 sm:grid-cols-3 gap-1 max-h-[60vh] overflow-y-auto custom-scrollbar" id="genre-dropdown-list">
+                            <div class="col-span-full text-center text-textMuted py-4"><i class="ph ph-spinner animate-spin text-xl inline-block"></i></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="relative dropdown-container">
+                    <button type="button" onclick="app.toggleDropdown('country-menu', event)" class="flex items-center gap-1.5 text-textMuted hover:text-white transition-colors outline-none p-2 rounded-full hover:bg-surface border border-transparent hover:border-borderMuted">
+                        <i class="ph ph-globe-hemisphere-west text-xl"></i>
+                        <span class="hidden lg:block text-sm font-medium">Quốc gia</span>
+                    </button>
+                    <div id="country-menu" class="dropdown-menu hidden absolute top-full right-0 mt-2 w-[260px] sm:w-[350px] bg-base border border-borderMuted rounded-xl shadow-2xl z-50">
+                        <div class="p-3 grid grid-cols-2 gap-1 max-h-[60vh] overflow-y-auto custom-scrollbar" id="country-dropdown-list">
+                            <div class="col-span-full text-center text-textMuted py-4"><i class="ph ph-spinner animate-spin text-xl inline-block"></i></div>
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="app.navigate('history')" class="flex items-center gap-1.5 text-textMuted hover:text-white transition-colors outline-none p-2 rounded-full hover:bg-surface border border-transparent hover:border-borderMuted">
+                    <i class="ph ph-clock-counter-clockwise text-xl"></i>
+                    <span class="hidden lg:block text-sm font-medium">Lịch sử</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 container mx-auto px-4 py-8 relative">
+        
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="hidden absolute inset-0 z-40 bg-base/80 backdrop-blur-sm flex flex-col items-center justify-center pt-32">
+            <div class="spinner mb-4"></div>
+            <p class="text-textMuted text-sm tracking-widest uppercase font-medium">Đang xử lý</p>
+        </div>
+
+        <!-- VIEW: HOME -->
+        <div id="view-home" class="view-section hidden flex flex-col gap-10">
+            <div id="home-categories-wrapper" class="flex flex-col gap-10"></div>
+        </div>
+
+        <!-- VIEW: CATEGORY -->
+        <div id="view-category" class="view-section hidden">
+            <div class="flex items-center gap-2 text-sm text-textMuted mb-6 pb-4 border-b border-borderMuted">
+                <button onclick="app.navigate('home')" class="hover:text-white transition-colors"><i class="ph ph-house"></i></button>
+                <i class="ph ph-caret-right text-xs"></i>
+                <span id="category-breadcrumb-name" class="text-textMain truncate font-medium"></span>
+            </div>
+            
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-light text-white flex items-center gap-3" id="category-title">
+                    <!-- Title inject -->
+                </h2>
+            </div>
+            
+            <div id="category-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-5">
+            </div>
+
+            <div class="mt-10 flex justify-center">
+                <button id="btn-load-more" onclick="app.loadMoreCategory()" class="px-6 py-2.5 bg-surface border border-borderMuted text-textMain rounded-full hover:bg-surfaceHover hover:border-accent transition-all flex items-center gap-2 outline-none group shadow-sm">
+                    <span id="load-more-text">Tải thêm phim</span>
+                    <i class="ph ph-caret-down group-hover:translate-y-0.5 transition-transform" id="load-more-icon"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- VIEW: SEARCH RESULTS -->
+        <div id="view-search" class="view-section hidden">
+            <h2 class="text-xl font-light mb-6 flex items-center gap-2 text-textMuted border-b border-borderMuted pb-4">
+                Kết quả tìm kiếm cho: <span id="search-keyword-display" class="text-white font-medium italic"></span>
+            </h2>
+            <div id="search-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-5"></div>
+            <div id="search-empty" class="hidden text-center py-20 bg-surface/30 rounded-xl border border-borderMuted mt-4">
+                <i class="ph ph-ghost text-4xl text-borderMuted mb-3"></i>
+                <p class="text-textMuted">Không tìm thấy kết quả phù hợp.</p>
+            </div>
+        </div>
+
+        <!-- VIEW: DETAIL & PLAYER -->
+        <div id="view-detail" class="view-section hidden">
+            <div class="flex items-center gap-2 text-sm text-textMuted mb-6 pb-4 border-b border-borderMuted">
+                <button onclick="app.navigate('home')" class="hover:text-white transition-colors"><i class="ph ph-house"></i></button>
+                <i class="ph ph-caret-right text-xs"></i>
+                <span id="detail-source-badge" class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-900/50 text-emerald-200 border border-emerald-700 shadow-sm">VSMOV</span>
+                <i class="ph ph-caret-right text-xs"></i>
+                <span id="detail-breadcrumb-name" class="text-textMain truncate"></span>
+            </div>
+
+            <div class="flex flex-col lg:flex-row gap-6">
+                <!-- Khu vực Video -->
+                <div class="w-full lg:w-3/4 flex flex-col gap-4">
+                    <div class="w-full aspect-video bg-black rounded-xl border border-borderMuted overflow-hidden relative shadow-lg">
+                        <video id="player" class="w-full h-full object-contain" controls playsinline></video>
+                        
+                        <div id="player-overlay" class="absolute inset-0 bg-base/90 flex flex-col items-center justify-center z-10 transition-opacity">
+                            <div class="text-center px-4">
+                                <button onclick="app.playFirstAvailableEpisode()" class="w-16 h-16 bg-surface hover:bg-surfaceHover text-white rounded-full flex items-center justify-center transition-all border border-borderMuted hover:border-accent hover:scale-105 shadow-xl group outline-none">
+                                    <i class="ph-fill ph-play text-2xl ml-1 group-hover:text-accent transition-colors"></i>
+                                </button>
+                                <p class="mt-4 text-sm font-medium text-textMuted tracking-wider uppercase">Chọn tập hoặc Bấm Play</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="sync-notification" class="hidden flex items-center justify-between bg-surface border border-borderMuted text-textMuted px-4 py-2.5 rounded-lg text-sm transition-all duration-300">
+                        <div class="flex items-center gap-3">
+                            <i class="ph ph-cloud-check text-accent text-lg"></i> 
+                            <span id="sync-message">Đã lưu tiến trình xem lên Cloud.</span>
+                        </div>
+                    </div>
+
+                    <div class="pt-2 bg-surface/30 p-6 rounded-xl border border-borderMuted">
+                        <h1 id="detail-title" class="text-2xl md:text-3xl font-medium text-white mb-1"></h1>
+                        <p id="detail-origin-name" class="text-textMuted text-sm mb-4 font-light italic"></p>
+                        
+                        <div class="flex flex-wrap items-center gap-3 text-xs mb-6">
+                            <span class="flex items-center gap-1 bg-surfaceHover text-textMain px-2.5 py-1 rounded border border-borderMuted shadow-sm">
+                                <i class="ph ph-calendar-blank text-accent"></i> <span id="detail-year" class="font-medium">N/A</span>
+                            </span>
+                            <span class="flex items-center gap-1 bg-yellow-900/20 text-yellow-500 border border-yellow-700/50 px-2.5 py-1 rounded shadow-sm">
+                                <i class="ph-fill ph-star"></i> <span id="detail-rating" class="font-medium">N/A</span>
+                            </span>
+                            <span class="flex items-center gap-1 bg-surfaceHover text-textMain px-2.5 py-1 rounded border border-borderMuted shadow-sm">
+                                <i class="ph ph-monitor-play text-accent"></i> <span id="detail-quality" class="font-medium">N/A</span>
+                            </span>
+                            <div id="detail-genres" class="flex flex-wrap gap-2 ml-1"></div>
+                        </div>
+
+                        <div class="prose prose-invert prose-slate max-w-none text-sm text-textMain leading-relaxed opacity-90">
+                            <div id="detail-content"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Danh sách tập -->
+                <div class="w-full lg:w-1/4">
+                    <div class="bg-surface border border-borderMuted rounded-xl flex flex-col h-full lg:max-h-[800px]">
+                        <div class="p-4 border-b border-borderMuted text-sm font-medium tracking-wide text-white flex items-center gap-2 bg-surfaceHover/50 rounded-t-xl">
+                            <i class="ph ph-list-numbers text-accent"></i> DANH SÁCH TẬP
+                        </div>
+                        <div class="p-4 overflow-y-auto flex-1 custom-scrollbar">
+                            <div id="episodes-container" class="flex flex-col gap-6"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW: HISTORY -->
+        <div id="view-history" class="view-section hidden">
+            <div class="flex items-center justify-between mb-8 pb-4 border-b border-borderMuted">
+                <h2 class="text-xl font-light text-white flex items-center gap-2 tracking-wide">
+                    <i class="ph ph-clock-counter-clockwise text-accent"></i> Lịch sử xem (Đồng bộ Cloud)
+                </h2>
+                <div id="history-sync-status" class="text-xs text-textMuted flex items-center gap-1 bg-surface px-2 py-1 rounded border border-borderMuted">
+                    <i class="ph ph-arrows-clockwise animate-spin hidden" id="history-sync-spinner"></i>
+                    <span id="history-sync-text">Đã đồng bộ</span>
+                </div>
+            </div>
+            
+            <div id="history-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5"></div>
+            
+            <div id="history-empty" class="hidden text-center py-20 bg-surface/30 rounded-xl border border-borderMuted">
+                <i class="ph ph-film-slate text-4xl text-borderMuted mb-3"></i>
+                <p class="text-textMuted">Chưa có dữ liệu xem phim.</p>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- APP LOGIC -->
+    <script>
+        // --- CẤU HÌNH API VSMOV ---
+        const API_BASE = 'https://vsmov.com/api'; 
+        
+        const API_CONFIG = {
+            genres: `${API_BASE}/the-loai`,
+            countries: `${API_BASE}/quoc-gia`,
+            homeCategory: (slug, limit) => `${API_BASE}/danh-sach/${slug}?limit=${limit}`,
+            category: (type, slug, page) => `${API_BASE}/${type}/${slug}?page=${page}&limit=24`,
+            search: (keyword) => `${API_BASE}/tim-kiem?keyword=${encodeURIComponent(keyword)}&limit=24`,
+            detail: (slug) => `${API_BASE}/phim/${slug}`
+        };
+
+        const CLOUD_SYNC = {
+            enabled: true,
+            BIN_ID: '6ae947e0ac6210605a67652f',
+            API_KEY: '$2a$10$lti09mn6/rgWl7E6Fgqi5.5rBgWNmrSqVYfoaZTHloVjCMRWIl4gC'
+        };
+
+        function getSafeImageUrl(domain, path) {
+            const fallback = 'https://placehold.co/300x450/1e293b/94a3b8?text=No+Image';
+            if (!path) return fallback;
+            if (path.startsWith('http')) return path;
+            const safeDomain = domain ? domain.replace(/\/$/, '') : '';
+            const safePath = path.replace(/^\//, '');
+            return safeDomain ? `${safeDomain}/${safePath}` : fallback;
+        }
+
+        const HistoryManager = {
+            storageKey: 'cinesync_history_vsmov',
+            cloudDataCache: null,
+            syncTimer: null,
+            
+            async init() {
+                const localStr = localStorage.getItem(this.storageKey);
+                this.cloudDataCache = localStr ? JSON.parse(localStr) : {};
+
+                if (CLOUD_SYNC.enabled) {
+                    try {
+                        const res = await fetch(`https://api.jsonbin.io/v3/b/${CLOUD_SYNC.BIN_ID}/latest`, {
+                            headers: { 'X-Master-Key': CLOUD_SYNC.API_KEY }
+                        });
+                        if (res.ok) {
+                            const json = await res.json();
+                            if (json && json.record && !Array.isArray(json.record)) {
+                                this.cloudDataCache = json.record;
+                                localStorage.setItem(this.storageKey, JSON.stringify(this.cloudDataCache));
+                            }
+                        }
+                    } catch (e) { console.error("Lỗi đồng bộ:", e); }
+                }
+            },
+            async getHistory() { return this.cloudDataCache || {}; },
+            async saveProgress(movieData, episodeData, currentTime, duration) {
+                if (!movieData || !episodeData || currentTime < 5) return false;
+                const id = movieData.slug;
+                this.cloudDataCache[id] = {
+                    id: id, name: movieData.name, thumb: movieData.thumb_url, source: 'vsmov',
+                    year: movieData.year, rating: movieData.rating,
+                    currentEpisode: { name: episodeData.name, slug: episodeData.slug },
+                    currentTime: currentTime, duration: duration || 0, updatedAt: Date.now()
+                };
+                localStorage.setItem(this.storageKey, JSON.stringify(this.cloudDataCache));
+
+                if (CLOUD_SYNC.enabled && !this.syncTimer) {
+                    this.syncTimer = setTimeout(async () => {
+                        this.syncTimer = null;
+                        try {
+                            await fetch(`https://api.jsonbin.io/v3/b/${CLOUD_SYNC.BIN_ID}`, {
+                                method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Master-Key': CLOUD_SYNC.API_KEY },
+                                body: JSON.stringify(this.cloudDataCache)
+                            });
+                        } catch (e) {}
+                    }, 15000);
+                }
+                return true;
+            },
+            async getMovieProgress(slug) { return this.cloudDataCache ? this.cloudDataCache[slug] : null; }
+        };
+
+        const app = {
+            hls: null, currentView: '', currentMovie: null, currentEpisode: null,
+            lastSaveTime: 0, saveInterval: 5, homeLoaded: false,
+            
+            currentCategorySlug: '', currentCategoryName: '', currentCategoryType: 'danh-sach', currentCategoryPage: 1, isCategoryLoading: false,
+
+            // CHỈ GIỮ LẠI CÁC DANH MỤC (danh-sach) ĐƯỢC API HỖ TRỢ CHUẨN
+            homeCategories: [
+                { slug: 'phim-le', name: 'Phim Lẻ', icon: 'ph-popcorn' },
+                { slug: 'phim-bo', name: 'Phim Bộ (Dài Tập)', icon: 'ph-film-strip' }
+            ],
+            
+            init() {
+                HistoryManager.init();
+                this.bindEvents();
+                this.setupHomeLayout();
+                this.fetchFilters();
+                this.navigate('home');
+            },
+
+            bindEvents() {
+                const searchForm = document.getElementById('search-form');
+                searchForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const keyword = document.getElementById('search-input').value.trim();
+                    if (keyword) {
+                        this.navigate('search', { keyword });
+                        document.getElementById('search-input').blur();
+                    }
+                });
+
+                const video = document.getElementById('player');
+                video.addEventListener('timeupdate', () => {
+                    const now = video.currentTime;
+                    if (Math.abs(now - this.lastSaveTime) >= this.saveInterval) {
+                        this.triggerSync(now, video.duration);
+                        this.lastSaveTime = now;
+                    }
+                });
+
+                document.addEventListener('click', (e) => {
+                    if (!e.target.closest('.dropdown-container')) {
+                        this.closeDropdowns();
+                    }
+                });
+            },
+
+            toggleDropdown(id, event) {
+                event.stopPropagation();
+                const menus = document.querySelectorAll('.dropdown-menu');
+                menus.forEach(menu => {
+                    if (menu.id !== id) menu.classList.add('hidden');
+                });
+                document.getElementById(id).classList.toggle('hidden');
+            },
+
+            closeDropdowns() {
+                document.querySelectorAll('.dropdown-menu').forEach(menu => menu.classList.add('hidden'));
+            },
+
+            async fetchFilters() {
+                try {
+                    const [resG, resC] = await Promise.all([
+                        fetch(API_CONFIG.genres).then(r => r.json()),
+                        fetch(API_CONFIG.countries).then(r => r.json())
+                    ]);
+                    
+                    const genres = resG?.data?.items || resG?.items || resG?.data || [];
+                    const countries = resC?.data?.items || resC?.items || resC?.data || [];
+
+                    if (genres.length > 0) {
+                        document.getElementById('genre-dropdown-list').innerHTML = genres.map(g => `
+                            <button onclick="app.navigate('category', {slug: '${g.slug}', name: '${g.name}', type: 'the-loai'}); app.closeDropdowns();" class="text-left px-3 py-2 text-sm text-textMuted hover:text-white hover:bg-surfaceHover rounded transition-colors truncate outline-none border border-transparent hover:border-borderMuted shadow-sm">
+                                ${g.name}
+                            </button>
+                        `).join('');
+                    } else {
+                        document.getElementById('genre-dropdown-list').innerHTML = `<div class="col-span-full text-center text-textMuted py-4">Không có dữ liệu</div>`;
+                    }
+                    
+                    if (countries.length > 0) {
+                        document.getElementById('country-dropdown-list').innerHTML = countries.map(c => `
+                            <button onclick="app.navigate('category', {slug: '${c.slug}', name: '${c.name}', type: 'quoc-gia'}); app.closeDropdowns();" class="text-left px-3 py-2 text-sm text-textMuted hover:text-white hover:bg-surfaceHover rounded transition-colors truncate outline-none border border-transparent hover:border-borderMuted shadow-sm">
+                                ${c.name}
+                            </button>
+                        `).join('');
+                    } else {
+                        document.getElementById('country-dropdown-list').innerHTML = `<div class="col-span-full text-center text-textMuted py-4">Không có dữ liệu</div>`;
+                    }
+                } catch (e) {
+                    console.error('Lỗi tải danh mục filter', e);
+                    document.getElementById('genre-dropdown-list').innerHTML = `<div class="col-span-full text-center text-red-400 py-4 text-xs">Lỗi kết nối API VSMov</div>`;
+                    document.getElementById('country-dropdown-list').innerHTML = `<div class="col-span-full text-center text-red-400 py-4 text-xs">Lỗi kết nối API VSMov</div>`;
+                }
+            },
+
+            setupHomeLayout() {
+                const wrapper = document.getElementById('home-categories-wrapper');
+                wrapper.innerHTML = '';
+
+                this.homeCategories.forEach(cat => {
+                    const section = document.createElement('section');
+                    section.innerHTML = `
+                        <div class="flex items-center justify-between mb-4">
+                            <button onclick="app.navigate('category', {slug: '${cat.slug}', name: '${cat.name}', type: 'danh-sach'})" class="text-xl font-light text-white flex items-center gap-2 tracking-wide group hover:text-accent transition-colors outline-none cursor-pointer">
+                                <i class="ph ${cat.icon} text-accent"></i> ${cat.name}
+                                <i class="ph ph-caret-right text-sm opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all text-textMuted"></i>
+                            </button>
+                            <button onclick="app.navigate('category', {slug: '${cat.slug}', name: '${cat.name}', type: 'danh-sach'})" class="text-xs text-textMuted hover:text-white transition-colors outline-none cursor-pointer">
+                                Xem tất cả
+                            </button>
+                        </div>
+                        <div id="home-${cat.slug}-container" class="drag-scroll flex overflow-x-auto gap-4 hide-scrollbar pb-4 snap-x cursor-grab no-select relative w-full">
+                            <div class="w-full text-center text-textMuted py-10 bg-surface/30 rounded-xl border border-borderMuted"><i class="ph ph-spinner animate-spin text-2xl inline-block"></i></div>
+                        </div>
+                    `;
+                    wrapper.appendChild(section);
+                });
+            },
+
+            initDragScrolls() {
+                document.querySelectorAll('.drag-scroll').forEach(slider => {
+                    let isDown = false; let startX; let scrollLeft; let dragged = false;
+                    slider.addEventListener('mousedown', (e) => {
+                        isDown = true; dragged = false;
+                        slider.classList.add('cursor-grabbing'); slider.classList.remove('cursor-grab');
+                        startX = e.pageX - slider.offsetLeft; scrollLeft = slider.scrollLeft;
+                    });
+                    slider.addEventListener('mouseleave', () => {
+                        isDown = false; slider.classList.remove('cursor-grabbing'); slider.classList.add('cursor-grab');
+                    });
+                    slider.addEventListener('mouseup', () => {
+                        isDown = false; slider.classList.remove('cursor-grabbing'); slider.classList.add('cursor-grab');
+                    });
+                    slider.addEventListener('mousemove', (e) => {
+                        if (!isDown) return;
+                        e.preventDefault();
+                        const walk = ((e.pageX - slider.offsetLeft) - startX) * 2;
+                        if (Math.abs((e.pageX - slider.offsetLeft) - startX) > 5) dragged = true;
+                        slider.scrollLeft = scrollLeft - walk;
+                    });
+                    slider.addEventListener('click', (e) => {
+                        if (dragged) { e.preventDefault(); e.stopPropagation(); }
+                    }, true);
+                });
+            },
+
+            navigate(viewName, params = {}) {
+                if (this.currentView === 'detail' && viewName !== 'detail') this.stopPlayer();
+                this.currentView = viewName;
+                document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+                const viewEl = document.getElementById(`view-${viewName}`);
+                if (viewEl) viewEl.classList.remove('hidden');
+
+                switch (viewName) {
+                    case 'home': this.loadHomePage(); break;
+                    case 'category': this.loadCategoryView(params.slug, params.name, params.type || 'danh-sach'); break;
+                    case 'search': this.executeSearch(params.keyword); break;
+                    case 'detail': this.loadDetail(params.slug); break;
+                    case 'history': this.renderHistoryView(); break;
+                }
+                
+                if (viewName !== 'category' || params.type !== undefined) {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            },
+
+            toggleLoading(show) {
+                const el = document.getElementById('loading-overlay');
+                show ? el.classList.remove('hidden') : el.classList.add('hidden');
+            },
+
+            async loadCategoryToContainer(slug, containerId) {
+                try {
+                    const res = await fetch(API_CONFIG.homeCategory(slug, 15)).then(r => r.json());
+                    const itemsData = res?.data?.items || res?.items || res?.page?.items || [];
+                    if (itemsData.length > 0) {
+                        const domain = res?.data?.APP_DOMAIN_CDN_IMAGE || res?.APP_DOMAIN_CDN_IMAGE || '';
+                        const items = itemsData.map(i => ({
+                            source: 'vsmov', name: i.name, origin_name: i.origin_name, slug: i.slug, 
+                            thumb_url: getSafeImageUrl(domain, i.thumb_url),
+                            year: i.year || 'N/A',
+                            rating: (i.tmdb && i.tmdb.vote_average) ? Number(i.tmdb.vote_average).toFixed(1) : 'N/A'
+                        }));
+                        this.renderList(items, containerId, true, false); 
+                    }
+                } catch (e) { console.error(`Lỗi tải ${slug}`, e); }
+            },
+
+            async loadHomePage() {
+                if (this.homeLoaded) return;
+                this.homeLoaded = true;
+                const promises = this.homeCategories.map(cat => this.loadCategoryToContainer(cat.slug, `home-${cat.slug}-container`));
+                await Promise.all(promises);
+                this.initDragScrolls(); 
+            },
+
+            async loadCategoryView(slug, name, type) {
+                this.currentCategorySlug = slug; this.currentCategoryName = name;
+                this.currentCategoryType = type; this.currentCategoryPage = 1;
+                
+                let icon = 'ph-film-strip';
+                if (type === 'the-loai') icon = 'ph-squares-four';
+                if (type === 'quoc-gia') icon = 'ph-globe-hemisphere-west';
+
+                document.getElementById('category-title').innerHTML = `<i class="ph ${icon} text-accent"></i> ${name}`;
+                document.getElementById('category-breadcrumb-name').textContent = name;
+                document.getElementById('category-grid').innerHTML = ''; 
+                
+                const btn = document.getElementById('btn-load-more');
+                btn.classList.remove('hidden');
+                document.getElementById('load-more-text').textContent = 'Tải thêm phim';
+                document.getElementById('load-more-icon').className = 'ph ph-caret-down group-hover:translate-y-0.5 transition-transform';
+
+                await this.fetchAndRenderCategoryPage(slug, 1, false, type);
+            },
+
+            async loadMoreCategory() {
+                if (this.isCategoryLoading) return;
+                this.currentCategoryPage++;
+                await this.fetchAndRenderCategoryPage(this.currentCategorySlug, this.currentCategoryPage, true, this.currentCategoryType);
+            },
+
+            async fetchAndRenderCategoryPage(slug, page, append, type) {
+                this.isCategoryLoading = true;
+                const btn = document.getElementById('btn-load-more');
+                const btnText = document.getElementById('load-more-text');
+                const btnIcon = document.getElementById('load-more-icon');
+
+                if (append) {
+                    btnText.textContent = 'Đang tải...'; btnIcon.className = 'ph ph-spinner animate-spin';
+                } else { this.toggleLoading(true); }
+
+                try {
+                    const res = await fetch(API_CONFIG.category(type, slug, page)).then(r => r.json());
+                    const itemsData = res?.data?.items || res?.items || res?.page?.items || [];
+                    if (itemsData.length > 0) {
+                        const domain = res?.data?.APP_DOMAIN_CDN_IMAGE || res?.APP_DOMAIN_CDN_IMAGE || '';
+                        const items = itemsData.map(i => ({
+                            source: 'vsmov', name: i.name, origin_name: i.origin_name, slug: i.slug, 
+                            thumb_url: getSafeImageUrl(domain, i.thumb_url),
+                            year: i.year || 'N/A',
+                            rating: (i.tmdb && i.tmdb.vote_average) ? Number(i.tmdb.vote_average).toFixed(1) : 'N/A'
+                        }));
+                        
+                        this.renderList(items, 'category-grid', false, append);
+
+                        const pagination = res?.data?.params?.pagination || res?.page?.pagination || res?.pagination;
+                        if (pagination && (pagination.currentPage >= pagination.totalPages || page >= pagination.totalPages)) {
+                            btn.classList.add('hidden');
+                        }
+                    }
+                } catch (error) { 
+                    console.error("Lỗi tải trang danh mục:", error); 
+                } finally { 
+                    this.isCategoryLoading = false;
+                    this.toggleLoading(false);
+                    if (append) {
+                        btnText.textContent = 'Tải thêm phim';
+                        btnIcon.className = 'ph ph-caret-down group-hover:translate-y-0.5 transition-transform';
+                    }
+                }
+            },
+
+            async executeSearch(keyword) {
+                this.toggleLoading(true);
+                document.getElementById('search-keyword-display').textContent = keyword;
+                try {
+                    const res = await fetch(API_CONFIG.search(keyword)).then(r => r.json());
+                    let results = [];
+                    const itemsData = res?.data?.items || res?.items || res?.page?.items || [];
+                    if (itemsData.length > 0) {
+                        const domain = res?.data?.APP_DOMAIN_CDN_IMAGE || res?.APP_DOMAIN_CDN_IMAGE || '';
+                        results = itemsData.map(i => ({
+                            source: 'vsmov', name: i.name, origin_name: i.origin_name, slug: i.slug, 
+                            thumb_url: getSafeImageUrl(domain, i.thumb_url),
+                            year: i.year || 'N/A',
+                            rating: (i.tmdb && i.tmdb.vote_average) ? Number(i.tmdb.vote_average).toFixed(1) : 'N/A'
+                        }));
+                    }
+                    this.renderSearch(results);
+                } catch (error) { console.error("Lỗi Search:", error); } 
+                finally { this.toggleLoading(false); }
+            },
+
+            async loadDetail(slug) {
+                this.toggleLoading(true);
+                this.stopPlayer();
+                document.getElementById('player-overlay').classList.remove('hidden');
+                
+                try {
+                    const res = await fetch(API_CONFIG.detail(slug)).then(r => r.json());
+                    const m = res?.movie || res?.item || res?.data?.item;
+                    if (m) {
+                        const eps = res.episodes || res.data?.episodes || m.episodes || [];
+                        const domain = res.data?.APP_DOMAIN_CDN_IMAGE || res.APP_DOMAIN_CDN_IMAGE || '';
+                        const movie = {
+                            source: 'vsmov', slug: m.slug, name: m.name, origin_name: m.origin_name,
+                            content: m.content, thumb_url: getSafeImageUrl(domain, m.thumb_url),
+                            year: m.year || 'N/A', rating: m.tmdb?.vote_average ? `${m.tmdb.vote_average}/10` : 'N/A',
+                            quality: m.quality || m.lang || 'FHD', 
+                            genres: m.category ? m.category.map(c => ({name: c.name, slug: c.slug})) : [],
+                            episodes: eps.map(s => ({ server_name: s.server_name, items: s.server_data.map(ep => ({ name: ep.name, slug: ep.slug, link_m3u8: ep.link_m3u8 })) }))
+                        };
+                        this.currentMovie = movie;
+                        this.renderDetail(movie);
+                    } else { throw new Error("API trống"); }
+                } catch (error) {
+                    alert("Không tải được chi tiết phim này."); this.navigate('home');
+                } finally { this.toggleLoading(false); }
+            },
+
+            renderList(items, containerId, isHorizontal, append = false) {
+                const container = document.getElementById(containerId);
+                if (!container) return;
+                
+                if (!append) container.innerHTML = '';
+
+                items.forEach(item => {
+                    const card = document.createElement('div');
+                    if (isHorizontal) card.className = 'group cursor-pointer flex-none w-[140px] sm:w-[160px] md:w-[180px] snap-start relative flex flex-col no-select';
+                    else card.className = 'group cursor-pointer flex flex-col relative';
+                    
+                    card.onclick = () => this.navigate('detail', { slug: item.slug });
+
+                    card.innerHTML = `
+                        <div class="relative aspect-[2/3] rounded-xl overflow-hidden bg-surface border border-borderMuted group-hover:border-accent transition-colors shadow-lg">
+                            <img src="${item.thumb_url}" draggable="false" alt="${item.name}" loading="lazy" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-all duration-500 scale-100 group-hover:scale-105">
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-80 group-hover:opacity-60 transition-opacity"></div>
+                            <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-base/40 transition-opacity">
+                                <i class="ph-fill ph-play-circle text-5xl text-white drop-shadow-xl"></i>
+                            </div>
+                            <div class="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[9px] uppercase font-bold tracking-wider border backdrop-blur-sm shadow-sm bg-emerald-900/80 text-emerald-200 border-emerald-700/50">
+                                VSMOV
+                            </div>
+                            <div class="absolute bottom-2 left-2 flex gap-1 z-10">
+                                <span class="px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wider border backdrop-blur-sm shadow-sm bg-base/80 text-white border-borderMuted">
+                                    ${item.year}
+                                </span>
+                                <span class="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wider border backdrop-blur-sm shadow-sm bg-yellow-900/80 text-yellow-500 border-yellow-700/50">
+                                    <i class="ph-fill ph-star"></i> ${item.rating}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="mt-3 px-1">
+                            <h3 class="font-medium text-sm text-textMain line-clamp-1 group-hover:text-accent transition-colors">${item.name}</h3>
+                            <p class="text-xs text-textMuted mt-1 line-clamp-1">${item.origin_name || ''}</p>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            },
+
+            renderSearch(items) {
+                const container = document.getElementById('search-grid');
+                const empty = document.getElementById('search-empty');
+                container.innerHTML = '';
+                if (items.length === 0) { empty.classList.remove('hidden'); return; }
+                empty.classList.add('hidden');
+                this.renderList(items, 'search-grid', false, false);
+            },
+
+            async renderDetail(movie) {
+                document.getElementById('detail-title').textContent = movie.name;
+                document.getElementById('detail-origin-name').textContent = movie.origin_name;
+                document.getElementById('detail-breadcrumb-name').textContent = movie.name;
+                document.getElementById('detail-content').innerHTML = movie.content;
+                
+                document.getElementById('detail-year').textContent = movie.year;
+                document.getElementById('detail-rating').textContent = movie.rating;
+                document.getElementById('detail-quality').textContent = movie.quality;
+                
+                const genresContainer = document.getElementById('detail-genres');
+                genresContainer.innerHTML = '';
+                if (movie.genres && movie.genres.length > 0) {
+                    movie.genres.forEach(g => {
+                        const btn = document.createElement('button');
+                        btn.className = 'px-2 py-1 bg-surface border border-borderMuted text-textMuted rounded text-[10px] uppercase font-bold tracking-wider hover:text-white hover:border-accent transition-colors outline-none cursor-pointer';
+                        btn.textContent = g.name;
+                        btn.onclick = () => app.navigate('category', { slug: g.slug, name: g.name, type: 'the-loai' });
+                        genresContainer.appendChild(btn);
+                    });
+                }
+
+                const epContainer = document.getElementById('episodes-container');
+                epContainer.innerHTML = '';
+                
+                const historyRecord = await HistoryManager.getMovieProgress(movie.slug);
+                let defaultEp = null; let resumeTime = 0;
+
+                movie.episodes.forEach(server => {
+                    const block = document.createElement('div');
+                    block.innerHTML = `<div class="text-[11px] text-textMuted uppercase mb-3 font-semibold tracking-wider flex items-center gap-2"><i class="ph-fill ph-hard-drives text-accent"></i> ${server.server_name}</div>`;
+                    const grid = document.createElement('div');
+                    grid.className = 'grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-3 gap-2';
+
+                    server.items.forEach(ep => {
+                        if (!defaultEp) defaultEp = ep;
+                        if (historyRecord && historyRecord.currentEpisode.slug === ep.slug) {
+                            defaultEp = ep; resumeTime = historyRecord.currentTime;
+                        }
+
+                        const btn = document.createElement('button');
+                        btn.id = `btn-ep-${ep.slug}`;
+                        btn.className = 'ep-btn w-full py-2 px-2 text-xs font-medium rounded bg-base border border-borderMuted text-textMuted hover:text-white hover:border-accent transition-colors truncate outline-none';
+                        btn.textContent = ep.name;
+                        btn.onclick = () => this.playEpisode(ep, 0); 
+                        grid.appendChild(btn);
+                    });
+                    block.appendChild(grid);
+                    epContainer.appendChild(block);
+                });
+
+                this.currentMovie.resumeEp = defaultEp;
+                this.currentMovie.resumeTime = resumeTime;
+            },
+
+            async renderHistoryView() {
+                const historyData = await HistoryManager.getHistory();
+                const container = document.getElementById('history-grid');
+                const empty = document.getElementById('history-empty');
+                
+                container.innerHTML = '';
+                const items = Object.values(historyData)
+                    .filter(i => i.source === 'vsmov')
+                    .sort((a, b) => b.updatedAt - a.updatedAt);
+                    
+                if (items.length === 0) { empty.classList.remove('hidden'); return; }
+                empty.classList.add('hidden');
+
+                items.forEach(item => {
+                    const progress = item.duration ? Math.min((item.currentTime / item.duration) * 100, 100) : 0;
+                    const card = document.createElement('div');
+                    card.className = 'flex gap-3 p-3 rounded-xl border border-borderMuted bg-surface hover:border-accent cursor-pointer transition-colors group shadow-md';
+                    card.onclick = () => this.navigate('detail', { slug: item.id });
+
+                    card.innerHTML = `
+                        <div class="w-20 aspect-[2/3] shrink-0 bg-base rounded-md overflow-hidden border border-borderMuted relative">
+                            <img src="${item.thumb}" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity">
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-90 group-hover:opacity-50 transition-opacity"></div>
+                            
+                            <button onclick="event.stopPropagation(); app.removeHistory('${item.id}')" class="absolute top-1 right-1 bg-black/70 text-textMuted rounded p-1 hover:text-red-400 backdrop-blur transition-colors z-10">
+                                <i class="ph ph-trash text-xs"></i>
+                            </button>
+                            
+                            ${item.year ? `<div class="absolute bottom-1 left-1 right-1 flex flex-col gap-0.5 z-10">
+                                <span class="flex items-center gap-0.5 px-1 py-0.5 rounded text-[8px] font-bold border backdrop-blur-sm bg-yellow-900/80 text-yellow-500 border-yellow-700/50 self-start">
+                                    <i class="ph-fill ph-star"></i> ${item.rating || 'N/A'}
+                                </span>
+                            </div>` : ''}
+                        </div>
+                        <div class="flex flex-col flex-1 py-1 overflow-hidden">
+                            <div class="flex items-center mb-1">
+                                <span class="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase border border-emerald-700/50 text-emerald-200 bg-emerald-900/50">VSMOV</span>
+                            </div>
+                            <h3 class="text-sm font-medium text-white line-clamp-2 leading-tight">${item.name}</h3>
+                            <p class="text-[11px] text-textMuted mt-1 bg-base/50 inline-block px-1.5 py-0.5 rounded self-start">Tập ${item.currentEpisode.name}</p>
+                            
+                            <div class="mt-auto pt-3">
+                                <div class="w-full h-1 bg-base rounded-full overflow-hidden border border-borderMuted/50">
+                                    <div class="h-full bg-accent transition-all relative" style="width: ${progress}%">
+                                        <div class="absolute inset-0 bg-white/20"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            },
+
+            async removeHistory(id) {
+                if (HistoryManager.cloudDataCache[id]) {
+                    delete HistoryManager.cloudDataCache[id];
+                    localStorage.setItem(HistoryManager.storageKey, JSON.stringify(HistoryManager.cloudDataCache));
+                    if (CLOUD_SYNC.enabled) {
+                        try {
+                            await fetch(`https://api.jsonbin.io/v3/b/${CLOUD_SYNC.BIN_ID}`, {
+                                method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Master-Key': CLOUD_SYNC.API_KEY },
+                                body: JSON.stringify(HistoryManager.cloudDataCache)
+                            });
+                        } catch(e){}
+                    }
+                    this.renderHistoryView();
+                }
+            },
+
+            playFirstAvailableEpisode() {
+                if (this.currentMovie?.resumeEp) { this.playEpisode(this.currentMovie.resumeEp, this.currentMovie.resumeTime); }
+            },
+            
+            playEpisode(episodeData, resumeTime = 0) {
+                this.currentEpisode = episodeData; this.lastSaveTime = resumeTime;
+                document.querySelectorAll('.ep-btn').forEach(btn => {
+                    btn.classList.remove('bg-accent', 'text-slate-900', 'border-transparent', 'shadow-md');
+                    btn.classList.add('bg-base', 'text-textMuted', 'border-borderMuted');
+                });
+                const activeBtn = document.getElementById(`btn-ep-${episodeData.slug}`);
+                if (activeBtn) {
+                    activeBtn.classList.remove('bg-base', 'text-textMuted', 'border-borderMuted');
+                    activeBtn.classList.add('bg-accent', 'text-slate-900', 'border-transparent', 'shadow-md');
+                }
+                document.getElementById('player-overlay').classList.add('hidden');
+                const video = document.getElementById('player');
+                const sourceUrl = episodeData.link_m3u8;
+
+                if (this.hls) { this.hls.destroy(); this.hls = null; }
+
+                if (Hls.isSupported()) {
+                    this.hls = new Hls({ maxBufferLength: 30 });
+                    this.hls.loadSource(sourceUrl); this.hls.attachMedia(video);
+                    this.hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                        if (resumeTime > 5) { video.currentTime = resumeTime; this.showSyncNotify(`Tiếp tục xem tập ${episodeData.name}`); }
+                        video.play().catch(e => console.log("Autoplay blocked"));
+                    });
+                } 
+                else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                    video.src = sourceUrl;
+                    video.addEventListener('loadedmetadata', function onLoaded() {
+                        if (resumeTime > 5) { video.currentTime = resumeTime; app.showSyncNotify(`Tiếp tục xem tập ${episodeData.name}`); }
+                        video.play(); video.removeEventListener('loadedmetadata', onLoaded);
+                    });
+                }
+            },
+            
+            stopPlayer() {
+                const video = document.getElementById('player');
+                video.pause(); video.removeAttribute('src'); video.load();
+                if (this.hls) { this.hls.destroy(); this.hls = null; }
+                this.currentEpisode = null;
+            },
+            
+            async triggerSync(currentTime, duration) {
+                const success = await HistoryManager.saveProgress(this.currentMovie, this.currentEpisode, currentTime, duration);
+                if (success && Math.random() < 0.1) { this.showSyncNotify("Đã lưu tiến trình ngầm"); }
+            },
+            
+            showSyncNotify(message) {
+                const box = document.getElementById('sync-notification');
+                document.getElementById('sync-message').textContent = message;
+                box.classList.remove('hidden');
+                setTimeout(() => box.classList.add('hidden'), 3000);
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => app.init());
+    </script>
+</body>
+</html>
